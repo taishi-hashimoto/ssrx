@@ -1,0 +1,117 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "windows-msvc-vcpkg-base",
+      "hidden": true,
+      "displayName": "Windows MSVC vcpkg",
+      "binaryDir": "${sourceDir}/build",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "SSRX_BUILD_HACKRF": "ON",
+        "SSRX_BUILD_RBSTAT": "ON",
+        "SSRX_BUILD_USRP": "OFF"
+      }
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2026-base",
+      "hidden": true,
+      "inherits": "windows-msvc-vcpkg-base",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64"
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-base",
+      "hidden": true,
+      "inherits": "windows-msvc-vcpkg-base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64"
+    },
+    {
+      "name": "windows-msvc-vcpkg-release",
+      "displayName": "Windows MSVC vcpkg Release (VS 2026)",
+      "inherits": "windows-msvc-vcpkg-vs2026-base"
+    },
+    {
+      "name": "windows-msvc-vcpkg-debug",
+      "displayName": "Windows MSVC vcpkg Debug (VS 2026)",
+      "inherits": "windows-msvc-vcpkg-vs2026-base"
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-release",
+      "displayName": "Windows MSVC vcpkg Release (VS 2022)",
+      "inherits": "windows-msvc-vcpkg-vs2022-base"
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-debug",
+      "displayName": "Windows MSVC vcpkg Debug (VS 2022)",
+      "inherits": "windows-msvc-vcpkg-vs2022-base"
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-msvc-vcpkg-release",
+      "configurePreset": "windows-msvc-vcpkg-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-msvc-vcpkg-debug",
+      "configurePreset": "windows-msvc-vcpkg-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-release",
+      "configurePreset": "windows-msvc-vcpkg-vs2022-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-debug",
+      "configurePreset": "windows-msvc-vcpkg-vs2022-debug",
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "windows-msvc-vcpkg-release",
+      "configurePreset": "windows-msvc-vcpkg-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msvc-vcpkg-debug",
+      "configurePreset": "windows-msvc-vcpkg-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-release",
+      "configurePreset": "windows-msvc-vcpkg-vs2022-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msvc-vcpkg-vs2022-debug",
+      "configurePreset": "windows-msvc-vcpkg-vs2022-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=ssrx SSR Mode-S receiver (HackRF)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.ssrx/
+ExecStart=%h/.ssrx/bin/ssrx-hackrf
+KillSignal=SIGINT
+TimeoutStopSec=15s
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+

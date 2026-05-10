@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "ssrx",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "cli11",
+    "cppzmq",
+    "fftw3",
+    "libusb",
+    {
+      "name": "pdcurses",
+      "platform": "windows & !mingw"
+    },
+    "pkgconf",
+    "pthreads",
+    "sqlite3",
+    "yaml-cpp"
+  ],
+  "features": {
+    "usrp": {
+      "description": "Dependencies for the experimental ssrx-usrp build against an external UHD SDK.",
+      "dependencies": [
+        "boost-asio",
+        "boost-core",
+        "boost-date-time",
+        "boost-exception",
+        "boost-format",
+        "boost-graph",
+        "boost-intrusive",
+        "boost-optional",
+        "boost-range",
+        "boost-smart-ptr",
+        "boost-thread",
+        "boost-units",
+        "boost-utility"
+      ]
+    }
+  }
+}

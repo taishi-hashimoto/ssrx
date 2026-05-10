@@ -1,0 +1,176 @@
+usrp:
+  # Device addr and other arguments.
+  # It seems increasing num_recv_frames might solve overflow issue?
+  args: num_recv_frames=512
+
+  # Target USRP specifications.
+  # Selected is assigned to channel 0.
+  mboard: 0
+
+  # NOTE: For N210: A:0
+  #       For B210: A:A or A:B
+  subdev: A:A
+
+  # TX/RX or RX2
+  antenna: RX2
+
+  # Time (PPS) settings.
+  time:
+    # internal, external
+    # For N210, external can be used also
+    source: external
+
+  # Clock (10MHz) settings.
+  clock:
+    # internal or external
+    source: external
+
+  # Rx gain in dB.
+  gain: 70
+
+  # Set true for automatic IQ balancing.
+  iq_balance: yes
+
+  # Rx center frequency.
+  center_frequency:
+    value: 1090
+    unit: MHz
+
+  # Rx IF filter bandwidth on the frontend (daughterbaud).
+  band_width:
+    value: 8.1
+    unit: MHz
+
+  # Data format on wire and CPU.
+  data_format:
+    wire: sc16
+    cpu: fc32  # Don't change!
+
+  # Sampling rate.
+  # On raspberry pi 5, 12 MSPS is the best balance for the performance and stability.
+  sampling_rate:
+    value: 12
+    unit: MHz
+
+hackrf:
+  # device:
+  #   serial: 
+
+  # Rx RF amp: off (0 dB) or on (+ ~11 dB)
+  enable_amp: yes
+
+  # Rx gain in dB.
+  # lna: IF amp: 0 to 40 dB in 8 dB steps
+  # vga: baseband amp: 0 to 62 dB in 2 dB steps
+  lna_gain: 40
+  vga_gain: 30
+
+  # Rx center frequency.
+  center_frequency:
+    value: 1090
+    unit: MHz
+
+  # Rx IF filter bandwidth on the frontend (daughterbaud).
+  band_width:
+    value: 8.1
+    unit: MHz
+
+  # Sampling rate.
+  # On raspberry pi 5, 12 MSPS with sc16 is the best balance for the performance and stability.
+  sampling_rate:
+    value: 12
+    unit: MHz
+
+# Ringbuffer sizes for the data acquisition and signal processing.
+ringbuffer:
+  # Each duration of the ringbuffer.
+  duration:
+    value: 0.4
+    unit: ms
+  # The number of blocks on the ringbuffer.
+  # Should be power of two, and if not, automatically increased to the next power of two.
+  nblocks: 4096
+
+sampler:
+  mq:
+    type: push
+    method: bind
+    addr: inproc://sampler
+
+correlator:
+  nthreads: 2
+  mq:
+    type: push
+    method: bind
+    addr: inproc://correlator
+
+# Detector thread look for the preamble in power of signal.
+detector:
+  # The number of coherent integration for detector.
+  # The baud rate of SSR Mode-S is 1 Mbps with pulse position modulation.
+  # That means, our final sampling rate should be 2 MSPS.
+  # Should be 5 for 10MHz sampling, 6 for 12 MHz sampling.
+  coherent_integration: 6
+
+  # SNR in dB for detecting preamble.
+  # Ratio of the mean of the high level of each pulse in preamble against the
+  # noise floor.
+  snr_preamble_high: 0
+
+  mq:
+    type: push
+    method: bind
+    addr: inproc://detector
+
+# Domodulator thread determines the pulse position and get 0/1 value for each bit.
+demodulator:
+  # Path to SQLite3 database file for recently seen aircrafts list.
+  database: ~/.ssrx/db/icao.sqlite3
+  mq:
+    type: push
+    method: connect
+    addr: inproc://demodulator
+
+# Collector thread gather samples and messages, then send it via 0mq.
+collector:
+  # Disable waveform transfer to the successive services.
+  waveform: false
+  mq:
+    # Socket type: push or pub
+    type: pub
+    method: bind
+    addr: tcp://*:28650
+    # addr: inproc://collector
+
+printer:
+  enable: no
+  columns:
+    # Show datetime in ISO format in fractional microseconds order.
+    datetime: yes
+    # Show RSSI in dB.
+    rssi: no
+    # Show raw message in hex format.
+    raw: yes
+  # Delimiter between each column.
+  delimiter: ','
+  # Case of raw messages in hex format.
+  uppercase: yes
+
+# Monitor thread keeps track of the ringbuffer state.
+# Bit blocks will be sent out via 0mq, whose single bit shows whether corresponding block of the ringbuffer
+# is in write state (1) or read state (0).
+monitor:
+  # Interval for monitor thread to collect and publish the information.
+  interval:
+    value: 100
+    unit: ms
+  # If ringbuffer write pointer does not advance for this duration,
+  # process exits abnormally so systemd can restart it.
+  # Set <= 0 to disable watchdog.
+  stalled_timeout:
+    value: 3
+    unit: second
+  mq:
+    method: bind
+    type: pub
+    addr: tcp://*:28652

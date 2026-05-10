@@ -1,0 +1,33 @@
+# Build outputs
+build/
+out/
+dist/
+obj/
+*.d
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+
+# CMake and package managers
+CMakeUserPresets.json
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+vcpkg_installed/
+.deps/
+
+# Test and tool caches
+.cache/
+.pytest_cache/
+
+# Editors and OS files
+.vscode/
+.idea/
+.DS_Store
