@@ -1,14 +1,79 @@
 # ssrx
 
-C++ Secondary Surveillance Radar (SSR) Mode-S receiver software using HackRF/USRP.
+C++ Secondary Surveillance Radar (SSR) Mode-S/ADS-B receiver software using HackRF/USRP.
 
-## Key Features
+## What is ssrx?
+
+`ssrx` is a receiver/decoder software for Secondary Surveillance Radar (SSR) Mode-S/ADS-B written in C++. This software collects the raw sampled waveform and decodes Mode-S/ADS-B messages in real-time.
+
+This is a part of the **SSR meteorological measurement system [atc2met](https://atc2met.nipr.ac.jp/)**.
+Further processing and analysis for the meteorological data is covered in other Python package (comming soon).
+
+### Key Features
 
 - Real-time decoding of Mode-S/ADS-B messages using **HackRF** and **USRP**.
-- High sampling rates (e.g., ~12 MSPS on Raspberry Pi 4/5) for improved decoding performance, compared to ~2.4 MSPS for typical RTL-SDR based devices.
+- Higher sampling rates (e.g., ~12 MSPS on Raspberry Pi 4/5) for improved decoding performance, compared to ~2.4 MSPS for typical RTL-SDR based devices.
 - **Raw waveform** retrieval for research purposes.
 - ZeroMQ-based collector protocol for downstream processing.
 - PPS synchronization support for accurate timestamping (USRP only).
+
+### Supported OS and Devices
+
+Build/Test:
+
+| OS      | HackRF One/Pro     | USRP (B200/B210/N200)|
+|---------|--------------------|----------------------|
+| Linux   | ✅                 | ✅                   |
+| macOS   | ✅                 | ✅                   |
+| Windows | ✅ (experimental)  | ✅ (experimental)    |
+
+Time and synchronization:
+
+| Features       | HackRF One/Pro     | USRP (B200/B210/N200)|
+|----------------|--------------------|----------------------|
+| PPS Sync       | ❌ (no PPS support) | ✅                   |
+
+### Limitations/Non-goals
+
+This repository is mostly designed for research purposes, i.e.;
+
+- The signal processing is far from optimized
+- Beautiful visualization is not aimed for
+- Out-of-the-box user experience is not provided for aircraft tracking and feeding it to famous online services (e.g., FlightRadar24, ADSBExchange, etc.)
+
+*NOTE: Some visualizations and online service integrations might be supported in the coming atc2met-related Python packages.*
+
+## Quick Start on Linux/macOS
+
+0. Prepare the hardware (see [Example Hardware Setup](#example-hardware-setup)).
+1. Install all dependencies (see [Dependencies](#dependencies)).
+2. Configure the build with `make` or `make SSRX_BUILD_USRP=ON`
+3. Install the binaries to `~/.ssrx/bin` with `make install`.
+4. Copy [the example configuration file](./conf/ssrx.yaml) to `~/.ssrx/conf/ssrx.yaml` and edit it as needed (see [Configuration](#configuration)).
+   Particularly, set `printer.enable` to `yes` for test output.
+5. `~/.ssrx/bin/ssrx-hackrf -a` to check the gain setting and signal quality (see [example output](#amplitude-histogram-plot-for-signal-quality-assessment))
+6. `~/.ssrx/bin/ssrx-hackrf` to start sampling and decoding (see [example output](#enabling-test-output)).
+
+## Example Hardware Setup
+
+- Raspberry Pi 4/5
+- HackRF One/Pro or USRP (B200/B210/N200)
+- Antenna
+- *(Optional) preamplifier and 1090 MHz band selection filter for better range and signal quality*
+- *(Optional) GPSDO for PPS synchronization (for USRP)*
+- *(Optional) Stable frequency reference*
+- *(Optional) External data storage (e.g., NAS or M.2 SSD) if you want to save raw waveforms in high sampling rates*
+
+### For time/phase-sensitive applications
+
+For applications that require accurate timestamping and/or phase information (e.g., interferometry), using USRP with an external GPSDO for PPS synchronization would be needed.
+
+### Caveats on Raspberry Pi 4/5
+
+Maximum sampling rate that stably works seems to be around 12 MSPS.
+However, this is only for the sampler signal processing.
+If your SD card writing is slow, the ring buffer may fill up and cause sample drops.
+Network streaming to other machines or writing to external M.2 SSD would be recommended to avoid this.
 
 ## Dependencies
 
@@ -128,6 +193,8 @@ Example systemd user units for the C++ samplers are in [services/](./services/).
 
 ### Example Usage
 
+#### CLI options
+
 ```bash
 $ build/ssrx-hackrf --help
 
@@ -148,19 +215,30 @@ Options:
 
 `ssrx-usrp` has the same CLI options. When your environment omits PPS source, use `--no-pps` to start sampling without PPS synchronization.
 
-Run HackRF sampler:
+#### Run HackRF sampler
 
 ```bash
 ~/.ssrx/bin/ssrx-hackrf ~/.ssrx/conf/ssrx.yaml
 ```
 
-Monitor the ring buffer from another terminal:
+When `printer.enable` is `yes` in the configuration file, the sampler will output something like:
+
+```csv
+# Timestamp, RSSI, Mode-S message in hex format
+...
+2026-05-10T00:24:40.759419,-18.45 dB,8D4CAD49F8330002004ABCFB1932
+2026-05-10T00:24:40.767487,-21.54 dB,8D88628EE11B3B000000004A5BA3
+2026-05-10T00:24:40.782006,-22.11 dB,02E19013110C51
+...
+```
+
+#### Monitor the ring buffer from another terminal
 
 ```bash
 ssrx-rbstat ~/.ssrx/conf/ssrx.yaml
 ```
 
-Amplitude histogram plot for signal quality assessment:
+#### Amplitude histogram plot for signal quality assessment
 
 ```bash
 ssrx-hackrf -a ~/.ssrx/conf/ssrx.yaml
@@ -204,33 +282,32 @@ The current C++ header layout is:
 
 ```cpp
 struct Header {
+    // Timestamp of the message in seconds and femtoseconds since the Unix epoch.
     int64_t seconds;
     int64_t femtoseconds;
+    // Received signal strength indicator (RSSI) in dB.
     double rssi;
+    // Length of the Mode-S message in bytes.
     uint32_t msg_len;
+    // Number of coherent integrations used for decoding.
+    // For 12MSPS sampling, this is `6`.
     uint32_t ncoh;
+    // Number of 2-us symbols in the optional waveform payload.
+    // Could be zero if `collector.waveform` is `false` in the configuration file.
+    // Total waveform size in bytes can be calculated as `nsymbols * ncoh * 2 * sizeof(std::complex<float>)`.
     uint32_t nsymbols;
+    // currently fixed to `VTYPE_C32`, indicating `std::complex<float>` waveform samples.
     uint32_t vtype;
 };
 ```
 
-`vtype` is currently fixed to `VTYPE_C32`, indicating `std::complex<float>` waveform samples.
 When `collector.waveform` is `false`, the third multipart frame is present but
 empty. Consumers should validate frame counts and sizes before decoding.
 
-### Enabling test output
+### Example consumer implementation
 
-To check the sampler output before implementing your own consumer, you can set `printer.enable` to `yes` in the configuration file.
-The sampler will then output something like below:
-
-```csv
-# Timestamp, RSSI, Mode-S message in hex format
-...
-2026-05-10T00:24:40.759419,-18.45 dB,8D4CAD49F8330002004ABCFB1932
-2026-05-10T00:24:40.767487,-21.54 dB,8D88628EE11B3B000000004A5BA3
-2026-05-10T00:24:40.782006,-22.11 dB,02E19013110C51
-...
-```
+You can find an example Python consumer that receives decoded messages from the sampler and prints them out with timestamps and RSSI values in [scripts/example-ssrx-consumer.py](./scripts/example-ssrx-consumer.py).
+Note waveform is discarded even if `collector.waveform` was `true` in this example.
 
 ## License
 
